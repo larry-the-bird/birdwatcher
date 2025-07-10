@@ -1,0 +1,15 @@
+{
+  "body": "{\"instruction\":\"Extract page metadata and main content\",\"url\":\"https://httpbin.org/html\",\"options\":{\"timeout\":20000,\"screenshot\":true}}",
+  "headers": {
+    "Content-Type": "application/json",
+    "User-Agent": "Amazon CloudFront"
+  },
+  "httpMethod": "POST",
+  "path": "/execute",
+  "queryStringParameters": null,
+  "requestContext": {
+    "requestId": "local-test-12345",
+    "accountId": "123456789012",
+    "stage": "local"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "task-executor",
+  "version": "1.0.0",
+  "description": "Lambda function for executing web automation tasks with LLM-generated plans",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx index.ts",
+    "test": "jest",
+    "invoke": "tsx local-invoke.ts",
+    "invoke:simple": "tsx local-invoke.ts simple",
+    "invoke:ecommerce": "tsx local-invoke.ts ecommerce",
+    "invoke:search": "tsx local-invoke.ts search",
+    "invoke:news": "tsx local-invoke.ts news",
+    "invoke:api": "tsx local-invoke.ts apiGateway",
+    "invoke:mock": "tsx local-invoke-mock.ts",
+    "invoke:mock:simple": "tsx local-invoke-mock.ts simple",
+    "invoke:mock:ecommerce": "tsx local-invoke-mock.ts ecommerce",
+    "invoke:mock:error": "tsx local-invoke-mock.ts error",
+    "invoke:mock:timeout": "tsx local-invoke-mock.ts timeout",
+    "test:mock": "npm run invoke:mock:simple && npm run invoke:mock:ecommerce"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.0",
+    "@neondatabase/serverless": "^1.0.1",
+    "@playwright/test": "^1.40.1",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.0.1",
+    "drizzle-orm": "^0.44.2",
+    "openai": "^4.20.1",
+    "playwright": "^1.54.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.10.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.0",
+    "tsx": "^4.6.2",
+    "typescript": "^5.3.2"
+  },
+  "keywords": [
+    "lambda",
+    "automation",
+    "playwright",
+    "llm",
+    "web-scraping"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,0 +1,12 @@
+{
+  "instruction": "Extract the main heading and page title from this test page",
+  "url": "https://httpbin.org/html",
+  "options": {
+    "timeout": 30000,
+    "screenshot": true,
+    "viewport": {
+      "width": 1280,
+      "height": 720
+    }
+  }
+}

@@ -1,0 +1,33 @@
+# SAM configuration file for local development
+
+version = 0.1
+
+[default]
+[default.local_start_api]
+parameter_overrides = [
+  "DatabaseUrl=postgresql://test:test@localhost:5432/test",
+  "OpenAIApiKey=sk-test-key",
+  "AnthropicApiKey=sk-ant-test-key"
+]
+
+[default.local_invoke]
+parameter_overrides = [
+  "DatabaseUrl=postgresql://test:test@localhost:5432/test",
+  "OpenAIApiKey=sk-test-key", 
+  "AnthropicApiKey=sk-ant-test-key"
+]
+
+[default.build]
+[default.build.parameters]
+skip_pull_image = true
+use_container = false
+
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "task-executor-dev"
+s3_bucket = "task-executor-deployment-bucket"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = [
+  "DatabaseUrl=postgresql://prod:password@prod-db:5432/birdwatcher"
+]

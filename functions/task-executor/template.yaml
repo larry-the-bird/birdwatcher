@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Task Executor Lambda Function for BirdWatcher
+
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 1024
+    Runtime: nodejs18.x
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: PostgreSQL database connection string
+    NoEcho: true
+  
+  OpenAIApiKey:
+    Type: String
+    Description: OpenAI API key for plan generation
+    NoEcho: true
+    Default: ""
+  
+  AnthropicApiKey:
+    Type: String
+    Description: Anthropic API key for alternative LLM
+    NoEcho: true
+    Default: ""
+
+Resources:
+  TaskExecutorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/
+      Handler: index.handler
+      Description: Execute web automation tasks with LLM-generated plans
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          ANTHROPIC_API_KEY: !Ref AnthropicApiKey
+          NODE_ENV: production
+      Events:
+        ExecuteTask:
+          Type: Api
+          Properties:
+            Path: /execute
+            Method: post
+      Layers:
+        - arn:aws:lambda:us-east-1:764866452798:layer:chrome-aws-lambda:31
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+Outputs:
+  TaskExecutorApi:
+    Description: API Gateway endpoint URL for TaskExecutor function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/execute/"
+  
+  TaskExecutorFunction:
+    Description: TaskExecutor Lambda Function ARN
+    Value: !GetAtt TaskExecutorFunction.Arn
+  
+  TaskExecutorFunctionIamRole:
+    Description: Implicit IAM Role created for TaskExecutor function
+    Value: !GetAtt TaskExecutorFunctionRole.Arn

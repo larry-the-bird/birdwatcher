@@ -1,0 +1,12 @@
+{
+  "instruction": "Extract the top 5 story titles and their scores from Hacker News",
+  "url": "https://news.ycombinator.com",
+  "options": {
+    "timeout": 30000,
+    "screenshot": false,
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  }
+}

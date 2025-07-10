@@ -25,7 +25,7 @@ export default function NotFound() {
               Page Not Found
             </h2>
             <p className="text-slate-600 mb-6">
-              The page you're looking for doesn't exist or has been moved.
+              The page you&apos;re looking for doesn&apos;t exist or has been moved.
             </p>
           </div>
 
@@ -47,7 +47,7 @@ export default function NotFound() {
               </svg>
             </div>
             <p className="text-sm text-slate-500">
-              Don't worry, our birdwatchers are still keeping an eye on things!
+              Don&apos;t worry, our birdwatchers are still keeping an eye on things!
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
