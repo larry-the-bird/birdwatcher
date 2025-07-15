@@ -2,10 +2,13 @@ import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
 import { eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { BrowserExecutor } from './browser-executor';
 import { PlanGenerator } from './plan-generator';
 import { CacheManager } from './cache-manager';
 import { InteractiveBrowserAgent } from './interactive-browser-agent';
+import { MonitoringService } from './monitoring-service';
+import { ChangeDetector } from './change-detector';
 import { executionResults, todo } from '../../next/src/db/schema';
 import { 
   TaskInput, 
@@ -103,8 +106,67 @@ export async function handler(event: any): Promise<LambdaResponse> {
     const planGenerator = new PlanGenerator();
     const cacheManager = new CacheManager();
 
-    // INTERACTIVE MODE - Execute task step-by-step with real-time browser state
-    if (executionMode === 'interactive' || executionMode === 'auto') {
+    // Check for cached plan first (even for interactive mode)
+    let cachedPlan: ExecutionPlan | null = null;
+    try {
+      // Create task signature for cache lookup (same logic as interactive agent)
+      const createTaskSignature = (instruction: string, url: string): string => {
+        const normalizedInstruction = instruction.toLowerCase().trim().replace(/\s+/g, '-');
+        const normalizedUrl = url.replace(/^https?:\/\//, '').replace(/[^\w.-]/g, '-');
+        return `${normalizedUrl}::${normalizedInstruction}`;
+      };
+      
+      const taskSignature = createTaskSignature(taskInput.instruction, taskInput.url);
+      console.log('🔍 Checking for cached plan...', { 
+        taskSignature,
+        instruction: taskInput.instruction.substring(0, 50) + '...',
+        url: taskInput.url.substring(0, 50) + '...'
+      });
+      cachedPlan = await cacheManager.getCachedPlan(taskSignature);
+      if (cachedPlan) {
+        console.log('📋 Found cached plan, using traditional execution instead of interactive', { planId: cachedPlan.id });
+      } else {
+        console.log('📋 No cached plan found, proceeding with interactive mode');
+      }
+    } catch (error) {
+      console.log('📋 Cache lookup failed, proceeding with interactive mode', { error: error instanceof Error ? error.message : error });
+    }
+
+    // Use cached plan with traditional execution if available
+    if (cachedPlan && (executionMode === 'interactive' || executionMode === 'auto')) {
+      console.log('🚀 Using cached plan with traditional execution');
+      
+      // Execute the cached plan directly
+      const browserExecutor = new BrowserExecutor({
+        headless: true,
+        viewport: taskInput.options?.viewport || { width: 1920, height: 1080 },
+        timeout: taskInput.options?.timeout || 60000,
+        screenshots: taskInput.options?.screenshot ?? true,
+        userAgent: taskInput.options?.userAgent
+      });
+
+      const result = await browserExecutor.executePlan(cachedPlan);
+      
+      executionResult = result;
+      executionPlan = cachedPlan;
+      
+      console.log('✅ Cached plan execution finished', { success: result.status === 'success' });
+      
+      // Store execution result
+      let storedExecutionId: string | null = null;
+      try {
+        storedExecutionId = await storeExecutionResult(
+          executionResult, 
+          taskInput.taskId, 
+          cachedPlan.id
+        );
+        console.log('💾 Cached plan execution result stored', { executionId: storedExecutionId });
+      } catch (storeError) {
+        console.warn('Failed to store cached plan execution result:', storeError);
+      }
+
+    // INTERACTIVE MODE - Execute task step-by-step with real-time browser state (only if no cached plan)
+    } else if (executionMode === 'interactive' || executionMode === 'auto') {
       console.log('🤖 Interactive mode: Step-by-step execution with real-time browser state');
       
       // Initialize browser executor for interactive agent
@@ -134,15 +196,21 @@ export async function handler(event: any): Promise<LambdaResponse> {
           success: interactiveResult.success,
           steps: interactiveResult.steps.length,
           escalatedToHuman: interactiveResult.escalatedToHuman,
-          generatedPlan: !!interactiveResult.generatedPlan
+          generatedPlan: !!interactiveResult.generatedPlan,
+          llmCalls: interactiveResult.usage?.llmCalls || 0,
+          totalTokens: interactiveResult.usage?.totalTokens || 0
         });
 
         // If interactive execution was successful and generated a plan, cache it
+        let planCachedSuccessfully = false;
+        let actualPlanId: string | null = null;
         if (interactiveResult.success && interactiveResult.generatedPlan) {
           try {
-            await cacheManager.cachePlan(interactiveResult.generatedPlan);
+            const cachedPlanId = await cacheManager.cachePlan(interactiveResult.generatedPlan);
+            planCachedSuccessfully = true;
+            actualPlanId = cachedPlanId;
             console.log('💾 Interactive plan cached successfully', { 
-              planId: interactiveResult.generatedPlan.id 
+              planId: actualPlanId 
             });
           } catch (cacheError) {
             console.warn('Failed to cache interactive plan:', cacheError);
@@ -154,11 +222,17 @@ export async function handler(event: any): Promise<LambdaResponse> {
           planId: interactiveResult.generatedPlan?.id || `interactive-${Date.now()}`,
           status: interactiveResult.success ? 'success' : 'failed',
           extractedData: {
-            interactiveSteps: interactiveResult.steps.length,
-            progressImprovement: interactiveResult.progressImprovement,
-            escalatedToHuman: interactiveResult.escalatedToHuman,
-            escalationReason: interactiveResult.escalationReason,
+            // Include actual extracted data from interactive execution
+            ...(interactiveResult.extractedData || {}),
+            // Include metadata about the interactive execution
+            _metadata: {
+              interactiveSteps: interactiveResult.steps.length,
+              progressImprovement: interactiveResult.progressImprovement,
+              escalatedToHuman: interactiveResult.escalatedToHuman,
+              escalationReason: interactiveResult.escalationReason,
+            }
           },
+          usage: interactiveResult.usage,
           screenshots: [], // Interactive agent handles screenshots internally
           logs: [],
           error: interactiveResult.escalatedToHuman ? {
@@ -185,15 +259,55 @@ export async function handler(event: any): Promise<LambdaResponse> {
           console.log('✅ Interactive execution finished', { success: interactiveResult.success });
           
           // Store execution result
+          let storedExecutionId: string | null = null;
           try {
-            await storeExecutionResult(
+            storedExecutionId = await storeExecutionResult(
               executionResult, 
               taskInput.taskId, 
-              executionResult.planId
+              actualPlanId
             );
             console.log('💾 Interactive execution result stored');
           } catch (error) {
             console.error('Failed to store interactive execution result:', error);
+          }
+
+          // Process monitoring if task execution was successful and we have extracted data
+          if (interactiveResult.success && executionResult.extractedData && taskInput.taskId && storedExecutionId) {
+            try {
+              const changeDetector = new ChangeDetector();
+              const monitoringService = new MonitoringService(db, changeDetector);
+
+              // Store current execution data for monitoring
+              await monitoringService.storeExecutionData({
+                taskId: taskInput.taskId,
+                url: taskInput.url,
+                extractedData: executionResult.extractedData,
+                executionId: storedExecutionId
+              });
+              console.log('📊 Monitoring data stored');
+
+              // Process change detection
+              const monitoringResult = await monitoringService.processMonitoring(
+                taskInput.taskId,
+                executionResult.extractedData,
+                storedExecutionId
+              );
+
+              if (monitoringResult.hasChanges) {
+                console.log('🔍 Changes detected!', {
+                  changedFields: monitoringResult.changedFields,
+                  isRestock: monitoringResult.isRestock
+                });
+              } else if (monitoringResult.isFirstExecution) {
+                console.log('🎯 First execution - baseline data stored');
+              } else {
+                console.log('😴 No changes detected');
+              }
+
+            } catch (monitoringError) {
+              console.warn('⚠️ Monitoring processing failed:', monitoringError);
+              // Don't fail the entire execution if monitoring fails
+            }
           }
 
           return {
@@ -479,8 +593,10 @@ export async function handler(event: any): Promise<LambdaResponse> {
 
     // Store execution result
     try {
-      await storeExecutionResult(executionResult, taskInput.taskId, executionPlan!.id);
+      const storedExecutionId = await storeExecutionResult(executionResult, taskInput.taskId, executionPlan!.id);
       console.log('💾 Execution result stored');
+      
+      // TODO: Add monitoring processing here if needed for traditional plan mode
     } catch (error) {
       console.error('Failed to store execution result:', error);
       // Continue anyway
@@ -546,7 +662,7 @@ export async function handler(event: any): Promise<LambdaResponse> {
     // Store error result if we have enough context
     if (executionResult) {
       try {
-        await storeExecutionResult(executionResult, undefined, executionResult.planId);
+        const storedExecutionId = await storeExecutionResult(executionResult, undefined, executionResult.planId);
       } catch (storeError) {
         const storeErrorMessage = storeError instanceof Error ? storeError.message : 'Unknown storage error';
         console.error('Failed to store error result', storeErrorMessage);
@@ -565,10 +681,12 @@ export async function handler(event: any): Promise<LambdaResponse> {
 async function storeExecutionResult(
   result: ExecutionResult, 
   taskId: string | undefined,
-  planId: string
-): Promise<void> {
+  planId: string | null
+): Promise<string> {
   try {
+    const executionId = randomUUID();
     await db.insert(executionResults).values({
+      id: executionId,
       taskId: taskId || null,
       planId,
       status: result.status,
@@ -578,6 +696,7 @@ async function storeExecutionResult(
       executionTime: result.metrics.executionTime,
       createdAt: new Date()
     });
+    return executionId;
   } catch (error) {
     console.error('Database storage failed:', error);
     throw error;

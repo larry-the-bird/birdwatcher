@@ -36,7 +36,7 @@ export class BrowserExecutor {
     const screenshots: string[] = [];
 
     try {
-      this.log('info', `Starting execution of plan: ${plan.id}`);
+      this.log('info', `🚀 Executing plan: ${plan.id}`);
       
       // Initialize browser
       await this.initializeBrowser();
@@ -44,12 +44,10 @@ export class BrowserExecutor {
       // Execute each step
       for (const step of plan.steps) {
         try {
-          this.log('info', `Executing step: ${step.description}`, step.id);
-          
           await this.executeStep(step, extractedData, screenshots, plan);
           stepsCompleted++;
           
-          this.log('info', `Step completed successfully: ${step.description}`, step.id);
+          this.log('info', `✅ ${step.type}: ${step.description}`, step.id);
           
         } catch (error) {
           const stepError = error as BrowserExecutionError;
@@ -114,7 +112,7 @@ export class BrowserExecutor {
         this.log('error', `Validation failed: ${validationResult.reason}`);
       }
       
-      this.log('info', `Plan execution completed with status: ${result.status}`);
+      this.log('info', `🎯 Plan ${result.status}: ${stepsCompleted}/${plan.steps.length} steps`);
       return result;
       
     } catch (error) {
@@ -393,7 +391,7 @@ export class BrowserExecutor {
   async initializeBrowser(): Promise<void> {
     // Skip initialization if browser is already initialized
     if (this.browser && this.context && this.page) {
-      this.log('info', 'Browser already initialized, skipping');
+      // Browser already initialized
       return;
     }
 
@@ -420,7 +418,7 @@ export class BrowserExecutor {
       // Set default timeout
       this.page.setDefaultTimeout(this.config.timeout);
       
-      this.log('info', 'Browser initialized successfully');
+      // Browser initialized successfully
     } catch (error) {
       throw new BrowserExecutionError('Failed to initialize browser', undefined, { error });
     }
@@ -442,7 +440,7 @@ export class BrowserExecutor {
       }
       
       this.page = null;
-      this.log('info', 'Browser cleanup completed');
+      // Browser cleanup completed
     } catch (error) {
       this.log('error', `Cleanup failed: ${error}`);
     }

@@ -13,6 +13,8 @@
     "invoke:ecommerce": "tsx local-invoke.ts ecommerce",
     "invoke:search": "tsx local-invoke.ts search",
     "invoke:news": "tsx local-invoke.ts news",
+    "invoke:coffee": "tsx local-invoke.ts coffee",
+    "invoke:monitoring": "tsx local-invoke.ts monitoring",
     "invoke:api": "tsx local-invoke.ts apiGateway",
     "invoke:mock": "tsx local-invoke-mock.ts",
     "invoke:mock:simple": "tsx local-invoke-mock.ts simple",

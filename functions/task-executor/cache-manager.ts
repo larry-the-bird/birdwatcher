@@ -113,10 +113,10 @@ export class CacheManager {
   /**
    * Cache a new execution plan
    */
-  async cachePlan(plan: ExecutionPlan, ttl?: number): Promise<void> {
+  async cachePlan(plan: ExecutionPlan, ttl?: number): Promise<string> {
     if (this.useLocalCache) {
       LocalMemoryCache.set(plan.taskSignature, plan);
-      return;
+      return plan.id;
     }
 
     try {
@@ -138,7 +138,7 @@ export class CacheManager {
           isActive: true
         })
         .onConflictDoUpdate({
-          target: executionPlans.id,
+          target: executionPlans.taskSignature,
           set: {
             plan: plan as any,
             updatedAt: new Date(),
@@ -146,12 +146,24 @@ export class CacheManager {
           }
         });
 
+      // Get the actual plan ID after upsert (in case of conflict, we need the existing ID)
+      const actualPlan = await this.db!
+        .select({ id: executionPlans.id })
+        .from(executionPlans)
+        .where(eq(executionPlans.taskSignature, plan.taskSignature))
+        .limit(1);
+
+      const actualPlanId = actualPlan[0]?.id;
+      if (!actualPlanId) {
+        throw new Error('Failed to retrieve plan ID after upsert');
+      }
+
       // Then create or update the cache entry
       await this.db!
         .insert(planCache)
         .values({
           cacheKey,
-          planId: plan.id,
+          planId: actualPlanId,
           hitCount: 0,
           lastUsed: new Date(),
           expiresAt,
@@ -160,13 +172,14 @@ export class CacheManager {
         .onConflictDoUpdate({
           target: planCache.cacheKey,
           set: {
-            planId: plan.id,
+            planId: actualPlanId,
             expiresAt,
             lastUsed: new Date()
           }
         });
 
-      console.log(`Plan cached successfully: ${plan.id}`);
+      console.log(`Plan cached successfully: ${actualPlanId}`);
+      return actualPlanId;
     } catch (error) {
       console.error('Error caching plan:', error);
       throw error;
@@ -335,10 +348,10 @@ export class CacheManager {
   /**
    * Force refresh cache entry
    */
-  async refreshCache(taskSignature: string, newPlan: ExecutionPlan): Promise<void> {
+  async refreshCache(taskSignature: string, newPlan: ExecutionPlan): Promise<string> {
     if (this.useLocalCache) {
       LocalMemoryCache.set(taskSignature, newPlan);
-      return;
+      return newPlan.id;
     }
 
     try {
@@ -346,9 +359,10 @@ export class CacheManager {
       await this.invalidateCache(taskSignature);
       
       // Cache new plan
-      await this.cachePlan(newPlan);
+      const actualPlanId = await this.cachePlan(newPlan);
       
       console.log(`Cache refreshed for task signature: ${taskSignature}`);
+      return actualPlanId;
     } catch (error) {
       console.error('Error refreshing cache:', error);
       throw error;

@@ -1,5 +1,49 @@
 import { z } from 'zod';
 
+// Change detection interfaces
+export interface ChangeResult {
+  hasChanged: boolean;
+  changedFields: string[];
+  isRestock?: boolean;
+  timestamp: Date;
+}
+
+export interface ChangeDetails {
+  changes: FieldChange[];
+  timestamp: Date;
+}
+
+export interface FieldChange {
+  field: string;
+  previousValue: any;
+  currentValue: any;
+  changeType: 'added' | 'removed' | 'modified';
+}
+
+// Monitoring interfaces
+export interface MonitoringConfig {
+  enabled: boolean;
+  changeDetection: {
+    fields?: string[];
+    notifyOnChange: boolean;
+    detectRestock?: boolean;
+  };
+  notifications?: {
+    email?: string;
+    webhook?: string;
+    slack?: string;
+  };
+}
+
+// Historical data storage
+export interface HistoricalData {
+  taskId: string;
+  url: string;
+  extractedData: any;
+  timestamp: Date;
+  executionId: string;
+}
+
 // Base execution step types
 export type ExecutionStepType = 
   | 'navigate'

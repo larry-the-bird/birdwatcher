@@ -248,3 +248,108 @@ The task executor includes comprehensive testing capabilities:
 - Model-specific prompt optimization
 
 This architecture provides a robust, self-improving web automation platform with both traditional planned execution and modern interactive capabilities.
+
+## Development Methodology
+
+### Test-Driven Development (TDD)
+
+**ALL new features and changes MUST be implemented using Test-Driven Development (TDD)**
+
+#### TDD Process (Red-Green-Refactor)
+1. **Red**: Write a failing test that describes the desired behavior
+2. **Green**: Write the minimal code to make the test pass
+3. **Refactor**: Improve the code while keeping tests passing
+
+#### TDD Requirements
+- **Write tests first** - No implementation before tests
+- **Write minimal code** - Only write code to make failing tests pass
+- **Refactor continuously** - Improve code structure while maintaining test coverage
+- **Test at all levels** - Unit tests, integration tests, end-to-end tests
+
+#### Test Structure
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run specific test file
+npm test -- --testNamePattern="ChangeDetector"
+```
+
+#### Testing Patterns
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test components working together
+- **End-to-End Tests**: Test complete user workflows
+- **Mock Tests**: Test without external dependencies
+
+#### TDD Examples
+```typescript
+// 1. RED: Write failing test
+describe('ChangeDetector', () => {
+  it('should detect when roasting date changes', () => {
+    const detector = new ChangeDetector();
+    const previousData = { roastingDate: '2024-01-15' };
+    const currentData = { roastingDate: '2024-01-20' };
+    
+    const hasChanged = detector.hasChanged(previousData, currentData);
+    
+    expect(hasChanged).toBe(true);
+  });
+});
+
+// 2. GREEN: Write minimal implementation
+class ChangeDetector {
+  hasChanged(previous: any, current: any): boolean {
+    return previous.roastingDate !== current.roastingDate;
+  }
+}
+
+// 3. REFACTOR: Improve while keeping tests passing
+```
+
+#### Test-First Mindset
+- **Think about behavior before implementation**
+- **Design APIs through test usage**
+- **Catch edge cases early**
+- **Ensure code is testable**
+- **Build confidence through comprehensive coverage**
+
+### Change Detection & Monitoring
+
+The BirdWatcher system supports continuous monitoring of web elements with change detection:
+
+#### **Change Detection System**
+- **Data Comparison**: Compares current vs previous extraction results
+- **Change Triggers**: Detects when monitored elements change
+- **Notification System**: Alerts when changes are detected
+- **Historical Tracking**: Maintains history of changes over time
+
+#### **Monitoring Use Cases**
+- **Product Restocking**: Monitor when products become available
+- **Price Changes**: Track price fluctuations
+- **Content Updates**: Detect when content changes
+- **Availability Monitoring**: Check when services become available
+
+#### **Example: Coffee Restock Monitoring**
+```typescript
+// Monitor coffee roasting date changes
+const task = {
+  instruction: "Extract roasting date from coffee product page",
+  url: "https://www.kaffecompagniet.se/kaffe/...",
+  cron: "0 */6 * * *", // Check every 6 hours
+  monitoring: {
+    enabled: true,
+    changeDetection: {
+      field: "roastingDate",
+      notifyOnChange: true
+    }
+  }
+};
+```
+
+This ensures all new features are properly tested and the system maintains high quality and reliability.
