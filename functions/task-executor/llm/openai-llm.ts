@@ -98,7 +98,7 @@ export class OpenAILLM extends BaseLLM {
           );
         }
 
-        return {
+        const llmResponse: LLMResponse = {
           content: choice.message.content,
           usage: {
             promptTokens: response.usage?.prompt_tokens,
@@ -108,6 +108,9 @@ export class OpenAILLM extends BaseLLM {
           model: response.model,
           finishReason: choice.finish_reason || undefined
         };
+
+        // Add cost information using dynamic pricing
+        return await this.attachCostToResponse(llmResponse);
       } else {
         throw new LLMAPIError(
           'Received streaming response when expecting non-streaming',

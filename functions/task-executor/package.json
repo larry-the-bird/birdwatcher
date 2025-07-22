@@ -17,6 +17,8 @@
     "test:changes": "tsx test-change-detection.ts",
     "demo:changes": "tsx demo-change-detection.ts",
     "test:email": "tsx test-email-notification.ts",
+    "test:pricing": "tsx test-llm-pricing.ts",
+    "test:cost": "tsx test-llm-cost-tracking.ts",
     "clean": "rm -rf dist execution-paths test-paths example-paths"
   },
   "dependencies": {

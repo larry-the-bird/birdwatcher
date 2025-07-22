@@ -1,6 +1,9 @@
+import { LLMPricingService, TokenUsage, CostBreakdown } from '../src/services/llm-pricing-service';
+
 /**
  * Abstract base class for LLM providers
  * Enables support for multiple AI services (OpenAI, Anthropic, local models, etc.)
+ * Includes dynamic pricing via LiteLLM data
  */
 
 export interface LLMConfig {
@@ -24,6 +27,7 @@ export interface LLMResponse {
     completionTokens?: number;
     totalTokens?: number;
   };
+  cost?: CostBreakdown;
   model?: string;
   finishReason?: string;
 }
@@ -63,10 +67,12 @@ export interface PlanGenerationResponse {
 export abstract class BaseLLM {
   protected config: LLMConfig;
   protected provider: string;
+  protected pricingService: LLMPricingService;
 
   constructor(config: LLMConfig, provider: string) {
     this.config = config;
     this.provider = provider;
+    this.pricingService = new LLMPricingService();
   }
 
   /**
@@ -139,7 +145,15 @@ export abstract class BaseLLM {
   }
 
   /**
-   * Get estimated cost for a request
+   * Calculate actual cost based on token usage using dynamic pricing
+   */
+  async calculateCost(usage: TokenUsage): Promise<CostBreakdown> {
+    return await this.pricingService.calculateCost(this.config.model, usage);
+  }
+
+  /**
+   * Get estimated cost for a request (deprecated - use calculateCost instead)
+   * @deprecated Use calculateCost with TokenUsage instead
    */
   abstract estimateCost(promptTokens: number, completionTokens: number): number;
 
@@ -202,7 +216,25 @@ export abstract class BaseLLM {
   }
 
   /**
-   * Log provider-specific metrics
+   * Calculate and attach cost information to response
+   */
+  protected async attachCostToResponse(response: LLMResponse): Promise<LLMResponse> {
+    if (response.usage?.promptTokens && response.usage?.completionTokens) {
+      try {
+        const cost = await this.calculateCost({
+          inputTokens: response.usage.promptTokens,
+          outputTokens: response.usage.completionTokens,
+        });
+        response.cost = cost;
+      } catch (error) {
+        console.warn(`Failed to calculate cost for ${this.config.model}:`, error);
+      }
+    }
+    return response;
+  }
+
+  /**
+   * Log provider-specific metrics with cost information
    */
   protected logMetrics(
     request: PlanGenerationRequest,
@@ -214,10 +246,15 @@ export abstract class BaseLLM {
       model: this.config.model,
       instruction: request.instruction.substring(0, 100),
       url: request.url,
-      duration,
+      duration: `${duration}ms`,
       usage: response.usage,
+      cost: response.cost?.totalCost ? `$${response.cost.totalCost.toFixed(6)}` : 'unknown',
       contentLength: response.content.length
     });
+
+    if (response.cost) {
+      console.log(`💰 ${this.pricingService.formatCostBreakdown(response.cost)}`);
+    }
   }
 }
 
