@@ -1,0 +1,11 @@
+{
+  "taskId": "test-task-2",
+  "steps": [
+    {
+      "action": "type",
+      "selector": "input.search",
+      "value": "test query"
+    }
+  ],
+  "lastSuccessful": "2025-07-22T18:27:59.556Z"
+}

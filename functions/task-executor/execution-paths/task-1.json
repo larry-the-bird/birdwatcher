@@ -1,0 +1,10 @@
+{
+  "taskId": "task-1",
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "https://site1.com"
+    }
+  ],
+  "lastSuccessful": "2025-07-22T18:27:59.558Z"
+}

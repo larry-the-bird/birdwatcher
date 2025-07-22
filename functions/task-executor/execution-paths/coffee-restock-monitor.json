@@ -1,0 +1,10 @@
+{
+  "taskId": "coffee-restock-monitor",
+  "steps": [
+    {
+      "action": "extract",
+      "selector": ".image-label p"
+    }
+  ],
+  "lastSuccessful": "2025-07-22T19:26:23.721Z"
+}

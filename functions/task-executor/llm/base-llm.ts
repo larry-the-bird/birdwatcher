@@ -109,6 +109,17 @@ export abstract class BaseLLM {
   abstract testConnection(): Promise<boolean>;
 
   /**
+   * Generate structured output from a prompt
+   */
+  async generateStructuredOutput<T>(prompt: string, schema?: any): Promise<T> {
+    const messages: LLMMessage[] = [
+      { role: 'user', content: prompt }
+    ];
+    const response = await this.generateCompletion(messages, { jsonMode: true });
+    return JSON.parse(response.content) as T;
+  }
+
+  /**
    * Get provider-specific information
    */
   getProviderInfo(): {
